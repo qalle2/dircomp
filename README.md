@@ -1,0 +1,2 @@
+# dircomp
+compare two directories
