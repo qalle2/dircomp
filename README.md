@@ -9,6 +9,7 @@ Syntax: *path1* *path2*
 ### *path1*, *path2*
 * two paths to compare
 * the paths must be different
+* one path must not be under the other one
 
 ## Example
 
