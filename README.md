@@ -1,38 +1,46 @@
 # dircomp
-Compares files under two directories (non-recursively at the moment).
+Compares files and subdirectories under two directories recursively.
 Developed with Python 3 under 64-bit Windows.
+
+## Command line arguments
+
+Syntax: *path1* *path2*
+
+### *path1*, *path2*
+* two paths to compare
+* the paths must be different
 
 ## Example
 
 ```
-=== Files under "test1" but not under "test2" ===
+python dircomp.py test1 test2
 
-"b.txt": size 4, last modified 2018-10-03 21:27:57
+Reading path "test1"...
+Reading path "test2"...
 
-=== Files under "test2" but not under "test1" ===
+=== Files/directories under "test1" but not under "test2" ===
 
-"c.txt": size 4, last modified 2018-10-03 21:28:02
+dir_test1_only\
+dir_test1_only\file_in_subdir.txt
+dir_test1_only\subsubdir\
+file_or_dir
+file_test1_only
 
-=== Files with the same name but the one under "test1" is larger ===
+=== Files/directories under "test2" but not under "test1" ===
 
-"test1\h.txt": size 5, last modified 2018-10-03 22:03:32
-"test2\h.txt": size 4, last modified 2018-10-03 22:03:37
+dir_test2_only\
+file_or_dir\
+file_test2_only
 
-=== Files with the same name but the one under "test2" is larger ===
+=== Files with different size under "test1" vs. under "test2" ===
 
-"test1\d.txt": size 4, last modified 2018-10-03 21:37:04
-"test2\d.txt": size 5, last modified 2018-10-03 21:37:07
+file_different_size: 10 vs. 20 byte(s)
 
-=== Files with the same name and size but the one under "test1" is newer ===
+=== Files with same size but different time of last modification under "test1" vs. under "test2" ===
 
-"test1\e.txt": size 4, last modified 2018-10-03 21:59:04
-"test2\e.txt": size 4, last modified 2018-10-03 21:58:56
+file_different_mtime: 2019-01-18 01:55:18 vs. 2019-01-18 01:55:28
 
-"test1\f.txt": size 4, last modified 2018-10-03 21:59:55
-"test2\f.txt": size 4, last modified 2018-10-03 21:59:52
+=== Files with same size but different contents under "test1" vs. under "test2" ===
 
-=== Files with the same name and size but the one under "test2" is newer ===
-
-"test1\g.txt": size 4, last modified 2018-10-03 22:00:24
-"test2\g.txt": size 4, last modified 2018-10-03 22:00:26
+file_different_contents
 ```
