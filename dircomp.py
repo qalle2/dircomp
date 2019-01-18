@@ -87,7 +87,13 @@ def main():
     if not os.path.isdir(path2):
         file_error(path2, "path not found")
     if os.path.samefile(path1, path2):
-        exit("Error: paths are the same.")
+        exit("Error: the paths are the same.")
+    commonPath = os.path.commonpath((path1, path2))
+    if commonPath:
+        if os.path.samefile(path1, commonPath):
+            exit("Error: the second path is under the first one.")
+        if os.path.samefile(path2, commonPath):
+            exit("Error: the first path is under the second one.")
 
     print('Reading path "{:s}"...'.format(to_ASCII(path1)))
     entries1 = get_entries(path1)
