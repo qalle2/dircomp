@@ -93,12 +93,19 @@ def main():
         file_error(path2, "path not found")
     if os.path.samefile(path1, path2):
         exit("Error: the paths are the same.")
-    commonPath = os.path.commonpath(
-        (canonical_path(path1), canonical_path(path2))
-    )
-    if commonPath \
-    and os.path.samefile(path1, commonPath) \
-    or os.path.samefile(path2, commonPath):
+
+    commonPath = None
+    try:
+        commonPath = os.path.commonpath(
+            (canonical_path(path1), canonical_path(path2))
+        )
+    except Exception:
+        pass
+
+    if commonPath and (
+        os.path.samefile(path1, commonPath)
+        or os.path.samefile(path2, commonPath)
+    ):
         exit("Error: one path must not be under the other.")
 
     print('Reading path "{:s}"...'.format(to_ASCII(path1)))
