@@ -14,7 +14,6 @@ Syntax: *path1* [*path2*]
 * *path2* is optional; the default is the current directory (`.`)
 
 ## Example
-
 ```
 *** Reading path "test1" ***
 *** Reading path "test2" ***
@@ -42,3 +41,7 @@ file_different_mtime: 2019-01-18 01:55:18 vs. 2019-01-18 01:55:28
 *** Files with the same size but different contents under "test1" vs. under "test2" ***
 file_different_contents
 ```
+
+# Notes
+* The times of last modification are in UTC.
+* Comparing the contents of files may take a long time.
