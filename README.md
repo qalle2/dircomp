@@ -44,4 +44,5 @@ file_different_contents
 
 ## Notes
 * The times of last modification are in UTC.
+* The date/time format is *year*-*month*-*day* *hour*-*minute*-*second*.
 * Comparing the contents of files may take a long time.
