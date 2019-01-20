@@ -70,6 +70,13 @@ def get_entries(baseDir, subDir = ""):
 
     return entries
 
+def format_heading(text, *paths):
+    """Format a heading with path names."""
+
+    return "*** {:s} ***".format(
+        text.format(*(to_ASCII(path) for path in paths))
+    )
+
 def format_entry(basePath, entry):
     """Add directory separator to end of entry if the path is a directory."""
 
@@ -114,11 +121,10 @@ def are_files_identical(path1, path2, file):
 def main():
     (path1, path2) = parse_arguments()
 
-    print('Reading path "{:s}"...'.format(to_ASCII(path1)))
+    print(format_heading('Reading path "{:s}"', path1))
     entries1 = get_entries(path1)
-    print('Reading path "{:s}"...'.format(to_ASCII(path2)))
+    print(format_heading('Reading path "{:s}"', path2))
     entries2 = get_entries(path2)
-    print()
 
     # common entries (entries that are in both sets)
     commonEntries = entries1 & entries2
@@ -139,75 +145,67 @@ def main():
     )
 
     # common files with the same size
-    commonFilesSameSize = set(
-        file for file in commonFiles
-        if os.path.getsize(os.path.join(path1, file))
-        == os.path.getsize(os.path.join(path2, file))
-    )
+    try:
+        commonFilesSameSize = set(
+            file for file in commonFiles
+            if os.path.getsize(os.path.join(path1, file))
+            == os.path.getsize(os.path.join(path2, file))
+        )
+    except OSError:
+        exit("Error getting file size.")
 
-    print('=== Files/directories under "{:s}" but not under "{:s}" ==='.format(
-        to_ASCII(path1), to_ASCII(path2)
+    print(format_heading(
+        'Files/directories under "{:s}" but not under "{:s}"', path1, path2
     ))
+    for entry in sorted((entries1 - entries2) | commonEntriesDifferentType):
+        print(format_entry(path1, entry))
     print()
-    entries = (entries1 - entries2) | commonEntriesDifferentType
-    if entries:
-        for entry in sorted(entries):
-            print(format_entry(path1, entry))
-        print()
 
-    print('=== Files/directories under "{:s}" but not under "{:s}" ==='.format(
-        to_ASCII(path2), to_ASCII(path1)
+    print(format_heading(
+        'Files/directories under "{:s}" but not under "{:s}"', path2, path1
     ))
+    for entry in sorted((entries2 - entries1) | commonEntriesDifferentType):
+        print(format_entry(path2, entry))
     print()
-    entries = (entries2 - entries1) | commonEntriesDifferentType
-    if entries:
-        for entry in sorted(entries):
-            print(format_entry(path2, entry))
-        print()
 
-    print(
-        '=== Files with different size under "{:s}" vs. under "{:s}" '
-        "===".format(to_ASCII(path1), to_ASCII(path2))
-    )
-    print()
-    entries = commonFiles - commonFilesSameSize
-    if entries:
-        for entry in sorted(entries):
+    print(format_heading(
+        'Files with different size under "{:s}" vs. under "{:s}"', path1, path2
+    ))
+    try:
+        for entry in sorted(commonFiles - commonFilesSameSize):
             print("{:s}: {:d} vs. {:d} byte(s)".format(
                 entry,
                 os.path.getsize(os.path.join(path1, entry)),
                 os.path.getsize(os.path.join(path2, entry))
             ))
-        print()
-
-    print(
-        "=== Files with same size but different time of last modification "
-        'under "{:s}" vs. under "{:s}" ==='.format(
-            to_ASCII(path1), to_ASCII(path2)
-        )
-    )
+    except OSError:
+        exit("Error getting file size.")
     print()
-    entries = set(
+
+    print(format_heading(
+        'Files with the same size but different time of last modification '
+        'under "{:s}" vs. under "{:s}"', path1, path2
+    ))
+    entries = (
         file for file in commonFilesSameSize
         if int(os.path.getmtime(os.path.join(path1, file)))
         != int(os.path.getmtime(os.path.join(path2, file)))
     )
-    if entries:
+    try:
         for entry in sorted(entries):
             print("{:s}: {:s} vs. {:s}".format(
                 entry,
                 format_timestamp(path1, entry),
                 format_timestamp(path2, entry)
             ))
-        print()
-
-    print(
-        '=== Files with same size but different contents under "{:s}" vs. '
-        'under "{:s}" ==='.format(
-            to_ASCII(path1), to_ASCII(path2)
-        )
-    )
+    except OSError:
+        exit("Error getting time of last modification.")
     print()
+
+    print(format_heading(
+        'Files with the same size but different contents under "{:s}" vs. '
+        'under "{:s}"', path1, path2
+    ))
     entries = (
         file for file in commonFilesSameSize
         if not are_files_identical(path1, path2, file)
