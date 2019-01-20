@@ -2,7 +2,16 @@ import os
 import sys
 import time
 
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+# consider times of last modification different if the absolute difference in
+# seconds is greater than this
+TIME_THRESHOLD = 10
+
+# how to print dates and times of last modification
+# see http://docs.python.org/library/time.html#time.strftime
+TIME_FORMAT = "%Y-%m-%d %H:%M:%S"  # year-month-day hour:minute:second
+#TIME_FORMAT = "%c"  # "locale's appropriate date and time representation"
+
+# how many bytes to read from a file per call
 FILE_BUFFER_SIZE = 2**20
 
 def to_ASCII(string):
@@ -187,9 +196,10 @@ def main():
         'under "{:s}" vs. under "{:s}"', path1, path2
     ))
     entries = (
-        file for file in commonFilesSameSize
-        if int(os.path.getmtime(os.path.join(path1, file)))
-        != int(os.path.getmtime(os.path.join(path2, file)))
+        file for file in commonFilesSameSize if abs(
+            os.path.getmtime(os.path.join(path1, file))
+            - os.path.getmtime(os.path.join(path2, file))
+        ) > TIME_THRESHOLD
     )
     try:
         for entry in sorted(entries):
