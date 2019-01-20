@@ -21,6 +21,40 @@ def file_error(file, msg):
 
     exit('"{:s}": error: {:s}.'.format(to_ASCII(file), msg))
 
+def parse_arguments():
+    """Parse and validate command line arguments."""
+
+    # validate number of args
+    if 2 <= len(sys.argv) <= 3:
+        path1 = sys.argv[1]
+        path2 = sys.argv[2] if len(sys.argv) >= 3 else "."
+    else:
+        exit("Syntax error. See readme file for help.")
+
+    # validate args
+    if not os.path.isdir(path1):
+        file_error(path1, "path not found")
+    if not os.path.isdir(path2):
+        file_error(path2, "path not found")
+    if os.path.samefile(path1, path2):
+        exit("Error: the paths are the same.")
+
+    commonPath = None
+    try:
+        commonPath = os.path.commonpath(
+            (canonical_path(path1), canonical_path(path2))
+        )
+    except Exception:
+        pass
+
+    if commonPath and (
+        os.path.samefile(path1, commonPath)
+        or os.path.samefile(path2, commonPath)
+    ):
+        exit("Error: one path must not be under the other.")
+
+    return (path1, path2)
+
 def get_entries(baseDir, subDir = ""):
     """Read a directory recursively.
     Return a set of entries (files and directories) without baseDir."""
@@ -79,34 +113,7 @@ def are_files_identical(path1, path2, file):
     return True
 
 def main():
-    # validate number of args
-    if 2 <= len(sys.argv) <= 3:
-        path1 = sys.argv[1]
-        path2 = sys.argv[2] if len(sys.argv) >= 3 else "."
-    else:
-        exit("Syntax error. See readme file for help.")
-
-    # validate args
-    if not os.path.isdir(path1):
-        file_error(path1, "path not found")
-    if not os.path.isdir(path2):
-        file_error(path2, "path not found")
-    if os.path.samefile(path1, path2):
-        exit("Error: the paths are the same.")
-
-    commonPath = None
-    try:
-        commonPath = os.path.commonpath(
-            (canonical_path(path1), canonical_path(path2))
-        )
-    except Exception:
-        pass
-
-    if commonPath and (
-        os.path.samefile(path1, commonPath)
-        or os.path.samefile(path2, commonPath)
-    ):
-        exit("Error: one path must not be under the other.")
+    (path1, path2) = parse_arguments()
 
     print('Reading path "{:s}"...'.format(to_ASCII(path1)))
     entries1 = get_entries(path1)
