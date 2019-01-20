@@ -11,10 +11,16 @@ def to_ASCII(string):
     byteString = string.encode("ascii", errors = "backslashreplace")
     return byteString.decode("ascii")
 
-def canonical_path(path):
-    """Absolute path, no symbolic links, normalized slashes and letter case."""
+def get_common_path(path1, path2):
+    """Get longest common sub-path.
+    Note: Paths may be absolute, relative or on different drives."""
 
-    return os.path.normcase(os.path.realpath(path))
+    absPaths = (os.path.abspath(path1), os.path.abspath(path2))
+
+    try:
+        return os.path.commonpath(absPaths)
+    except Exception:
+        return ""
 
 def file_error(file, msg):
     """Print an error message regarding a file or a path and exit."""
@@ -39,19 +45,12 @@ def parse_arguments():
     if os.path.samefile(path1, path2):
         exit("Error: the paths are the same.")
 
-    commonPath = None
-    try:
-        commonPath = os.path.commonpath(
-            (canonical_path(path1), canonical_path(path2))
-        )
-    except Exception:
-        pass
-
+    commonPath = get_common_path(path1, path2)
     if commonPath and (
         os.path.samefile(path1, commonPath)
         or os.path.samefile(path2, commonPath)
     ):
-        exit("Error: one path must not be under the other.")
+        exit("Error: one path is under the other one.")
 
     return (path1, path2)
 
