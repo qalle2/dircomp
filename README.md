@@ -42,6 +42,6 @@ file_different_mtime: 2019-01-18 01:55:18 vs. 2019-01-18 01:55:28
 file_different_contents
 ```
 
-# Notes
+## Notes
 * The times of last modification are in UTC.
 * Comparing the contents of files may take a long time.
