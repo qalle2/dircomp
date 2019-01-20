@@ -4,12 +4,14 @@ Developed with Python 3 under 64-bit Windows.
 
 ## Command line arguments
 
-Syntax: *path1* *path2*
+Syntax: *path1* [*path2*]
 
 ### *path1*, *path2*
 * two paths to compare
 * the paths must be different
 * one path must not be under the other one
+* *path1* is required
+* *path2* is optional; the default is the current directory (`.`)
 
 ## Example
 
