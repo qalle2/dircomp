@@ -11,6 +11,11 @@ def to_ASCII(string):
     byteString = string.encode("ascii", errors = "backslashreplace")
     return byteString.decode("ascii")
 
+def canonical_path(path):
+    """Absolute path, no symbolic links, normalized slashes and letter case."""
+
+    return os.path.normcase(os.path.realpath(path))
+
 def file_error(file, msg):
     """Print an error message regarding a file or a path and exit."""
 
@@ -75,11 +80,11 @@ def are_files_identical(path1, path2, file):
 
 def main():
     # validate number of args
-    if len(sys.argv) != 3:
-        exit(HELP_TEXT)
-
-    # get args
-    (path1, path2) = sys.argv[1:]
+    if 2 <= len(sys.argv) <= 3:
+        path1 = sys.argv[1]
+        path2 = sys.argv[2] if len(sys.argv) >= 3 else "."
+    else:
+        exit("Syntax error. See readme file for help.")
 
     # validate args
     if not os.path.isdir(path1):
@@ -88,12 +93,13 @@ def main():
         file_error(path2, "path not found")
     if os.path.samefile(path1, path2):
         exit("Error: the paths are the same.")
-    commonPath = os.path.commonpath((path1, path2))
-    if commonPath:
-        if os.path.samefile(path1, commonPath):
-            exit("Error: the second path is under the first one.")
-        if os.path.samefile(path2, commonPath):
-            exit("Error: the first path is under the second one.")
+    commonPath = os.path.commonpath(
+        (canonical_path(path1), canonical_path(path2))
+    )
+    if commonPath \
+    and os.path.samefile(path1, commonPath) \
+    or os.path.samefile(path2, commonPath):
+        exit("Error: one path must not be under the other.")
 
     print('Reading path "{:s}"...'.format(to_ASCII(path1)))
     entries1 = get_entries(path1)
