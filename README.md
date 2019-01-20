@@ -14,23 +14,24 @@ Syntax: *path1* *path2*
 ## Example
 
 ```
-python dircomp.py test1 test2
-
 Reading path "test1"...
 Reading path "test2"...
 
 === Files/directories under "test1" but not under "test2" ===
 
 dir_test1_only\
-dir_test1_only\file_in_subdir.txt
-dir_test1_only\subsubdir\
+dir_test1_only\dir\
+dir_test1_only\dir\file
+dir_test1_only\file
 file_or_dir
 file_test1_only
 
 === Files/directories under "test2" but not under "test1" ===
 
 dir_test2_only\
+dir_test2_only\file
 file_or_dir\
+file_or_dir\file
 file_test2_only
 
 === Files with different size under "test1" vs. under "test2" ===
