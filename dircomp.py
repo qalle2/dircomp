@@ -1,18 +1,4 @@
-import os
-import sys
-import time
-
-# consider times of last modification different if the absolute difference in
-# seconds is greater than this
-TIME_THRESHOLD = 10
-
-# how to print dates and times of last modification
-# see http://docs.python.org/library/time.html#time.strftime
-TIME_FORMAT = "%Y-%m-%d %H:%M:%S"  # year-month-day hour:minute:second
-#TIME_FORMAT = "%c"  # "locale's appropriate date and time representation"
-
-# how many bytes to read from a file per call
-FILE_BUFFER_SIZE = 2**20
+import getopt, os, sys, time
 
 def to_ASCII(string):
     """Replace non-7-bit ASCII characters in string with backslash codes."""
@@ -20,48 +6,46 @@ def to_ASCII(string):
     byteString = string.encode("ascii", errors = "backslashreplace")
     return byteString.decode("ascii")
 
-def get_common_path(path1, path2):
-    """Get longest common sub-path.
-    Note: Paths may be absolute, relative or on different drives."""
-
-    absPaths = (os.path.abspath(path1), os.path.abspath(path2))
-
-    try:
-        return os.path.commonpath(absPaths)
-    except Exception:
-        return ""
-
-def file_error(file, msg):
-    """Print an error message regarding a file or a path and exit."""
-
-    exit('"{:s}": error: {:s}.'.format(to_ASCII(file), msg))
-
 def parse_arguments():
     """Parse and validate command line arguments."""
 
+    try:
+        (opts, args) = getopt.getopt(sys.argv[1:], "c")
+    except getopt.GetoptError:
+        exit("Invalid argument.")
+
+    opts = dict(opts)
+
     # validate number of args
-    if 2 <= len(sys.argv) <= 3:
-        path1 = sys.argv[1]
-        path2 = sys.argv[2] if len(sys.argv) >= 3 else "."
+    if 1 <= len(args) <= 2:
+        path1 = args[0]
+        path2 = args[1] if len(args) >= 2 else "."
     else:
-        exit("Syntax error. See readme file for help.")
+        exit("Incorrect number of arguments.")
 
-    # validate args
-    if not os.path.isdir(path1):
-        file_error(path1, "path not found")
-    if not os.path.isdir(path2):
-        file_error(path2, "path not found")
+    # paths must exist
+    for path in (path1, path2):
+        if not os.path.isdir(path):
+            exit('Path not found: "{:s}"'.format(to_ASCII(path)))
+
+    # paths must be different
     if os.path.samefile(path1, path2):
-        exit("Error: the paths are the same.")
+        exit("Paths are the same.")
 
-    commonPath = get_common_path(path1, path2)
-    if commonPath and (
-        os.path.samefile(path1, commonPath)
-        or os.path.samefile(path2, commonPath)
-    ):
-        exit("Error: one path is under the other one.")
+    # one path must not be under another
+    absPaths = tuple(os.path.abspath(path) for path in (path1, path2))
+    try:
+        commonPath = os.path.commonpath(absPaths)
+        if any(os.path.samefile(path, commonPath) for path in (path1, path2)):
+            exit("One path is under another.")
+    except ValueError:
+        pass
 
-    return (path1, path2)
+    return {
+        "fileContents": "-c" in opts,
+        "path1": path1,
+        "path2": path2,
+    }
 
 def get_entries(baseDir, subDir = ""):
     """Read a directory recursively.
@@ -70,12 +54,15 @@ def get_entries(baseDir, subDir = ""):
     dir = os.path.join(baseDir, subDir)
     entries = set()
 
-    with os.scandir(dir) as dirIter:
-        for entry in dirIter:
-            subPath = os.path.join(subDir, entry.name)
-            entries.add(subPath)
-            if entry.is_dir():
-                entries.update(get_entries(baseDir, subPath))
+    try:
+        with os.scandir(dir) as dirIter:
+            for entry in dirIter:
+                subPath = os.path.join(subDir, entry.name)
+                entries.add(subPath)
+                if entry.is_dir():
+                    entries.update(get_entries(baseDir, subPath))
+    except PermissionError:
+        pass
 
     return entries
 
@@ -99,7 +86,7 @@ def format_timestamp(path, file):
     path = os.path.join(path, file)
     timestamp = os.path.getmtime(path)
     timeTuple = time.gmtime(timestamp)
-    return time.strftime(TIME_FORMAT, timeTuple)
+    return time.strftime("%Y-%m-%d %H:%M:%S", timeTuple)
 
 def read_file(handle):
     """Generate a file in chunks."""
@@ -108,7 +95,7 @@ def read_file(handle):
     handle.seek(0)
 
     while bytesLeft:
-        chunkSize = min(bytesLeft, FILE_BUFFER_SIZE)
+        chunkSize = min(bytesLeft, 2**20)
         yield handle.read(chunkSize)
         bytesLeft -= chunkSize
 
@@ -128,100 +115,104 @@ def are_files_identical(path1, path2, file):
     return True
 
 def main():
-    (path1, path2) = parse_arguments()
+    settings = parse_arguments()
 
-    print(format_heading('Reading path "{:s}"', path1))
-    entries1 = get_entries(path1)
-    print(format_heading('Reading path "{:s}"', path2))
-    entries2 = get_entries(path2)
+    print(format_heading('Reading path "{:s}"', settings["path1"]))
+    entries1 = get_entries(settings["path1"])
+    print(format_heading('Reading path "{:s}"', settings["path2"]))
+    entries2 = get_entries(settings["path2"])
 
     # common entries (entries that are in both sets)
     commonEntries = entries1 & entries2
 
     # common files (no directories)
     commonFiles = set(
-        entry for entry in commonEntries
-        if not os.path.isdir(os.path.join(path1, entry))
-        and not os.path.isdir(os.path.join(path2, entry))
+        entry for entry in commonEntries if not any(
+            os.path.isdir(os.path.join(settings[path], entry))
+            for path in ("path1", "path2")
+        )
     )
 
     # common entries of a different type (one is a file, the other a
     # directory); note: common files need not be searched
-    commonEntriesDifferentType = set(
+    diffTypeEntries = set(
         entry for entry in commonEntries - commonFiles
-        if os.path.isdir(os.path.join(path1, entry))
-        != os.path.isdir(os.path.join(path2, entry))
+        if os.path.isdir(os.path.join(settings["path1"], entry))
+        != os.path.isdir(os.path.join(settings["path2"], entry))
     )
 
     # common files with the same size
     try:
-        commonFilesSameSize = set(
+        sameSizeFiles = set(
             file for file in commonFiles
-            if os.path.getsize(os.path.join(path1, file))
-            == os.path.getsize(os.path.join(path2, file))
+            if os.path.getsize(os.path.join(settings["path1"], file))
+            == os.path.getsize(os.path.join(settings["path2"], file))
         )
     except OSError:
         exit("Error getting file size.")
 
+    # print entries missing from one directory
     print(format_heading(
-        'Files/directories under "{:s}" but not under "{:s}"', path1, path2
+        'Entries under "{:s}" but not under "{:s}"',
+        settings["path1"], settings["path2"]
     ))
-    for entry in sorted((entries1 - entries2) | commonEntriesDifferentType):
-        print(format_entry(path1, entry))
-    print()
-
+    for entry in sorted((entries1 - entries2) | diffTypeEntries):
+        print(format_entry(settings["path1"], entry))
     print(format_heading(
-        'Files/directories under "{:s}" but not under "{:s}"', path2, path1
+        'Entries under "{:s}" but not under "{:s}"',
+        settings["path2"], settings["path1"]
     ))
-    for entry in sorted((entries2 - entries1) | commonEntriesDifferentType):
-        print(format_entry(path2, entry))
-    print()
+    for entry in sorted((entries2 - entries1) | diffTypeEntries):
+        print(format_entry(settings["path2"], entry))
 
+    # print files with different size
     print(format_heading(
-        'Files with different size under "{:s}" vs. under "{:s}"', path1, path2
+        'Files with different size under "{:s}" vs. "{:s}"',
+        settings["path1"], settings["path2"]
     ))
     try:
-        for entry in sorted(commonFiles - commonFilesSameSize):
+        for entry in sorted(commonFiles - sameSizeFiles):
             print("{:s}: {:d} vs. {:d} byte(s)".format(
                 entry,
-                os.path.getsize(os.path.join(path1, entry)),
-                os.path.getsize(os.path.join(path2, entry))
+                os.path.getsize(os.path.join(settings["path1"], entry)),
+                os.path.getsize(os.path.join(settings["path2"], entry))
             ))
     except OSError:
         exit("Error getting file size.")
-    print()
 
+    # print files with different mtime
     print(format_heading(
-        'Files with the same size but different time of last modification '
-        'under "{:s}" vs. under "{:s}"', path1, path2
+        'Files with same size, different mtime under "{:s}" vs. "{:s}"',
+        settings["path1"], settings["path2"]
     ))
     entries = (
-        file for file in commonFilesSameSize if abs(
-            os.path.getmtime(os.path.join(path1, file))
-            - os.path.getmtime(os.path.join(path2, file))
-        ) > TIME_THRESHOLD
+        file for file in sameSizeFiles if
+        os.path.getmtime(os.path.join(settings["path1"], file))
+        != os.path.getmtime(os.path.join(settings["path2"], file))
     )
     try:
         for entry in sorted(entries):
             print("{:s}: {:s} vs. {:s}".format(
                 entry,
-                format_timestamp(path1, entry),
-                format_timestamp(path2, entry)
+                format_timestamp(settings["path1"], entry),
+                format_timestamp(settings["path2"], entry)
             ))
     except OSError:
-        exit("Error getting time of last modification.")
-    print()
+        exit("Error getting mtime.")
 
-    print(format_heading(
-        'Files with the same size but different contents under "{:s}" vs. '
-        'under "{:s}"', path1, path2
-    ))
-    entries = (
-        file for file in commonFilesSameSize
-        if not are_files_identical(path1, path2, file)
-    )
-    for entry in sorted(entries):
-        print(entry)
+    if settings["fileContents"]:
+        # print files with different contents
+        print(format_heading(
+            'Files with same size, different contents under "{:s}" vs. "{:s}"',
+            settings["path1"], settings["path2"]
+        ))
+        entries = (
+            file for file in sameSizeFiles if not are_files_identical(
+                settings["path1"], settings["path2"], file
+            )
+        )
+        for entry in sorted(entries):
+            print(entry)
 
 if __name__ == "__main__":
     main()
