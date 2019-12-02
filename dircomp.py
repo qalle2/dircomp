@@ -1,18 +1,23 @@
-import getopt, os, sys, time
+"""Compare two directories recursively."""
+
+import getopt
+import os
+import sys
+import time
 
 def to_ASCII(string):
     """Replace non-7-bit ASCII characters in string with backslash codes."""
 
-    byteString = string.encode("ascii", errors = "backslashreplace")
+    byteString = string.encode("ascii", errors="backslashreplace")
     return byteString.decode("ascii")
 
 def parse_arguments():
-    """Parse and validate command line arguments."""
+    """Parse and validate command line arguments with getopt."""
 
     try:
         (opts, args) = getopt.getopt(sys.argv[1:], "c")
     except getopt.GetoptError:
-        exit("Invalid argument.")
+        sys.exit("Invalid command line argument.")
 
     opts = dict(opts)
 
@@ -21,23 +26,23 @@ def parse_arguments():
         path1 = args[0]
         path2 = args[1] if len(args) >= 2 else "."
     else:
-        exit("Incorrect number of arguments.")
+        sys.exit("Invalid number of command line arguments.")
 
     # paths must exist
     for path in (path1, path2):
         if not os.path.isdir(path):
-            exit('Path not found: "{:s}"'.format(to_ASCII(path)))
+            sys.exit('Path not found: "{:s}"'.format(to_ASCII(path)))
 
     # paths must be different
     if os.path.samefile(path1, path2):
-        exit("Paths are the same.")
+        sys.exit("Paths are the same.")
 
     # one path must not be under another
     absPaths = tuple(os.path.abspath(path) for path in (path1, path2))
     try:
         commonPath = os.path.commonpath(absPaths)
         if any(os.path.samefile(path, commonPath) for path in (path1, path2)):
-            exit("One path is under another.")
+            sys.exit("One path is under another.")
     except ValueError:
         pass
 
@@ -47,15 +52,15 @@ def parse_arguments():
         "path2": path2,
     }
 
-def get_entries(baseDir, subDir = ""):
+def get_entries(baseDir, subDir=""):
     """Read a directory recursively.
     Return a set of entries (files and directories) without baseDir."""
 
-    dir = os.path.join(baseDir, subDir)
+    dir_ = os.path.join(baseDir, subDir)
     entries = set()
 
     try:
-        with os.scandir(dir) as dirIter:
+        with os.scandir(dir_) as dirIter:
             for entry in dirIter:
                 subPath = os.path.join(subDir, entry.name)
                 entries.add(subPath)
@@ -115,6 +120,8 @@ def are_files_identical(path1, path2, file):
     return True
 
 def main():
+    """The main function."""
+
     settings = parse_arguments()
 
     print(format_heading('Reading path "{:s}"', settings["path1"]))
@@ -149,7 +156,7 @@ def main():
             == os.path.getsize(os.path.join(settings["path2"], file))
         )
     except OSError:
-        exit("Error getting file size.")
+        sys.exit("Error getting file size.")
 
     # print entries missing from one directory
     print(format_heading(
@@ -178,7 +185,7 @@ def main():
                 os.path.getsize(os.path.join(settings["path2"], entry))
             ))
     except OSError:
-        exit("Error getting file size.")
+        sys.exit("Error getting file size.")
 
     # print files with different mtime
     print(format_heading(
@@ -186,8 +193,8 @@ def main():
         settings["path1"], settings["path2"]
     ))
     entries = (
-        file for file in sameSizeFiles if
-        os.path.getmtime(os.path.join(settings["path1"], file))
+        file for file in sameSizeFiles
+        if os.path.getmtime(os.path.join(settings["path1"], file))
         != os.path.getmtime(os.path.join(settings["path2"], file))
     )
     try:
@@ -198,7 +205,7 @@ def main():
                 format_timestamp(settings["path2"], entry)
             ))
     except OSError:
-        exit("Error getting mtime.")
+        sys.exit("Error getting file mtime.")
 
     if settings["fileContents"]:
         # print files with different contents
