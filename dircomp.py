@@ -122,6 +122,9 @@ def are_files_identical(path1, path2, file):
 def main():
     """The main function."""
 
+    if sys.version_info[0] != 3:
+        print("Warning: possibly incompatible Python version.", file=sys.stderr)
+
     settings = parse_arguments()
 
     print(format_heading('Reading path "{:s}"', settings["path1"]))
