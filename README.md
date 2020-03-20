@@ -1,50 +1,44 @@
 # dircomp
-Compares files and subdirectories under two directories recursively.
-Developed with Python 3 under 64-bit Windows.
+```
+usage: dircomp.py [-h] [-c] [-m MTIME_TOLERANCE] path path
 
-## Command line arguments
+Compare files and subdirectories under two directories recursively.
 
-Syntax: *[options]* *path1* [*path2*]
+positional arguments:
+  path                  Two paths separated by a space.
 
-### options
-* `-c`
-  * Compare file contents (may take a long time).
-
-### *path1*, *path2*
-* two paths to compare
-* the paths must be different
-* one path must not be under the other one
-* *path1* is required
-* *path2* is optional; the default is the current directory (`.`)
+optional arguments:
+  -h, --help            show this help message and exit
+  -c, --compare-contents
+                        Compare the contents of the files (may take a long time). (default: False)
+  -m MTIME_TOLERANCE, --mtime-tolerance MTIME_TOLERANCE
+                        Consider times of last modification the same if the absolute value of their difference in
+                        seconds does not exceed this. (default: 0)
+```
 
 ## Example
 ```
+C:\>python dircomp.py --compare-contents test1 test2
 *** Reading path "test1" ***
 *** Reading path "test2" ***
-*** Entries under "test1" but not under "test2" ***
+*** Entries only under "test1" ***
 dir_test1_only\
 dir_test1_only\dir\
 dir_test1_only\dir\file
 dir_test1_only\file
 file_or_dir
 file_test1_only
-*** Entries under "test2" but not under "test1" ***
+*** Entries only under "test2" ***
 dir_test2_only\
 dir_test2_only\file
 file_or_dir\
 file_or_dir\file
 file_test2_only
-*** Files with different size under "test1" vs. "test2" ***
-file_different_size: 10 vs. 20 byte(s)
-*** Files with same size, different mtime under "test1" vs. "test2" ***
-file_different_contents: 2019-01-18 02:00:10 vs. 2019-01-18 02:00:10
-file_different_mtime: 2019-01-18 01:55:18 vs. 2019-01-20 04:11:55
-*** Files with same size, different contents under "test1" vs. "test2" ***
+*** Files with different size ***
+file_different_size
+*** Files with same size, different time of last modification ***
+file_different_contents
+file_different_mtime
+*** Files with same size, different contents ***
 file_different_contents
 ```
-
-## Notes
-* *entry* = file or directory
-* *mtime* = time of last modification
-* The times of last modification are in UTC.
-* The date/time format is *year*-*month*-*day* *hour*-*minute*-*second*.
