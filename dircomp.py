@@ -53,18 +53,13 @@ def get_entries(baseDir, subDir=""):
                 if isDir:
                     entries.update(get_entries(baseDir, subPath))
     except PermissionError:
-        print('Warning: no permission: "{:s}"'.format(to_ASCII(dir_)), file=sys.stderr)
+        print(f'Warning: no permission: "{dir_:s}"', file=sys.stderr)
     return entries
-
-def to_ASCII(string_):
-    """Replace non-ASCII characters with backslash codes."""
-
-    return string_.encode("ascii", errors="backslashreplace").decode("ascii")
 
 def format_heading(text, *paths):
     """Format a heading with a path name."""
 
-    return "*** " + text.format(*('"' + to_ASCII(path) + '"' for path in paths)) + " ***"
+    return "*** " + text.format(*(f'"{path:s}"' for path in paths)) + " ***"
 
 def format_entry(basePath, entry):
     """Add a directory separator to end of the entry if it is a directory."""
