@@ -44,13 +44,16 @@ def get_entries(baseDir, subDir=""):
 
     dir_ = os.path.join(baseDir, subDir)
     entries = {}
-    with os.scandir(dir_) as dirIter:
-        for entry in dirIter:
-            subPath = os.path.join(subDir, entry.name)
-            isDir = entry.is_dir()
-            entries[subPath] = isDir
-            if isDir:
-                entries.update(get_entries(baseDir, subPath))
+    try:
+        with os.scandir(dir_) as dirIter:
+            for entry in dirIter:
+                subPath = os.path.join(subDir, entry.name)
+                isDir = entry.is_dir()
+                entries[subPath] = isDir
+                if isDir:
+                    entries.update(get_entries(baseDir, subPath))
+    except PermissionError:
+        print('Warning: no permission: "{:s}"'.format(dir_), file=sys.stderr)
     return entries
 
 def to_ASCII(string_):
