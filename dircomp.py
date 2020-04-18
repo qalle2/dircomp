@@ -53,7 +53,7 @@ def get_entries(baseDir, subDir=""):
                 if isDir:
                     entries.update(get_entries(baseDir, subPath))
     except PermissionError:
-        print('Warning: no permission: "{:s}"'.format(dir_), file=sys.stderr)
+        print('Warning: no permission: "{:s}"'.format(to_ASCII(dir_)), file=sys.stderr)
     return entries
 
 def to_ASCII(string_):
