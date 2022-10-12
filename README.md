@@ -7,20 +7,22 @@ Compare files and subdirectories under two directories recursively.
 positional arguments:
   path                  Two paths separated by a space.
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -c, --compare-contents
-                        Compare the contents of the files (may take a long time).
+                        Compare the contents of the files too.
   -m MTIME_TOLERANCE, --mtime-tolerance MTIME_TOLERANCE
-                        Consider times of last modification the same if the absolute value of
-                        their difference in seconds does not exceed this. Default=0.
+                        Consider times of last modification the same if the
+                        absolute value of their difference in seconds does not
+                        exceed this. Default=0.
 ```
 
 ## Example
 ```
-$ python3 dircomp.py --compare-contents test1/ test2/
 *** Reading path test1/ ***
+directories: 2, files: 8
 *** Reading path test2/ ***
+directories: 2, files: 7
 *** Entries only under test1/ ***
 dir_test1_only/
 dir_test1_only/dir/
