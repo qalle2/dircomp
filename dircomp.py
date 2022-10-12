@@ -1,22 +1,23 @@
 import argparse, os, sys
 
 def parse_arguments():
-    # parse command line arguments with argparse
-
     parser = argparse.ArgumentParser(
-        description="Compare files and subdirectories under two directories recursively."
+        description="Compare files and subdirectories under two directories "
+        "recursively."
     )
 
     parser.add_argument(
         "-c", "--compare-contents", action="store_true",
-        help="Compare the contents of the files (may take a long time)."
+        help="Compare the contents of the files too."
     )
     parser.add_argument(
         "-m", "--mtime-tolerance", type=int, default=0,
-        help="Consider times of last modification the same if the absolute value of their "
-        "difference in seconds does not exceed this. Default=0."
+        help="Consider times of last modification the same if the absolute "
+        "value of their difference in seconds does not exceed this. Default=0."
     )
-    parser.add_argument("path", nargs=2, help="Two paths separated by a space.")
+    parser.add_argument(
+        "path", nargs=2, help="Two paths separated by a space."
+    )
 
     args = parser.parse_args()
 
@@ -34,7 +35,8 @@ def parse_arguments():
     return args
 
 def get_entries(baseDir, subDir=""):
-    # read a directory recursively; return: {entry_without_baseDir: is_directory, ...}
+    # read a directory recursively;
+    # return: {entry_without_baseDir: is_directory, ...}
 
     dir_ = os.path.join(baseDir, subDir)
     entries = {}
@@ -53,7 +55,8 @@ def get_entries(baseDir, subDir=""):
 def format_entry(basePath, entry):
     # add directory separator to end of entry if it's a directory
 
-    return os.path.join(entry, "") if os.path.isdir(os.path.join(basePath, entry)) else entry
+    return os.path.join(entry, "") \
+    if os.path.isdir(os.path.join(basePath, entry)) else entry
 
 def read_file(handle):
     # generate file in chunks
@@ -72,7 +75,8 @@ def are_files_identical(basePaths, subPath):
 
     with open(paths[0], "rb") as handle1, open(paths[1], "rb") as handle2:
         return all(
-            chunks[0] == chunks[1] for chunks in zip(read_file(handle1), read_file(handle2))
+            chunks[0] == chunks[1]
+            for chunks in zip(read_file(handle1), read_file(handle2))
         )
 
 def main():
@@ -83,22 +87,32 @@ def main():
     for path in args.path:
         print(f"*** Reading path {path} ***")
         entries.append(get_entries(path))
+        print("directories: {}, files: {}".format(
+            sum(1 for e in entries[-1] if entries[-1][e]),
+            sum(1 for e in entries[-1] if not entries[-1][e])
+        ))
 
-    # get entries under both paths
+    # entries under both paths
     commonEntries = set(entries[0]) & set(entries[1])
 
-    # print entries only under one path
-    diffTypeEntries = set(e for e in commonEntries if entries[0][e] != entries[1][e])
+    # entries only under one path
+    diffTypeEntries = {
+        e for e in commonEntries if entries[0][e] != entries[1][e]
+    }
     for i in range(2):
         print(f"*** Entries only under {args.path[i]} ***")
-        for entry in sorted((set(entries[i]) - set(entries[1-i])) | diffTypeEntries):
+        for entry in sorted(
+            (set(entries[i]) - set(entries[1-i])) | diffTypeEntries
+        ):
             print(format_entry(args.path[i], entry))
 
-    # print files with the same size
-    commonFiles = set(e for e in commonEntries if not (entries[0][e] or entries[1][e]))
+    commonFiles = {
+        e for e in commonEntries if not (entries[0][e] or entries[1][e])
+    }
     sameSizeFiles = set(
         f for f in commonFiles
-        if len(set(os.path.getsize(os.path.join(p, f)) for p in args.path)) == 1
+        if len(set(os.path.getsize(os.path.join(p, f)) for p in args.path))
+        == 1
     )
 
     print("*** Files with different size ***")
@@ -116,7 +130,9 @@ def main():
 
     if args.compare_contents:
         print("*** Files with same size, different contents ***")
-        for entry in sorted(f for f in sameSizeFiles if not are_files_identical(args.path, f)):
+        for entry in sorted(
+            f for f in sameSizeFiles if not are_files_identical(args.path, f)
+        ):
             print(entry)
 
 main()
