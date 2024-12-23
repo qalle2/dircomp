@@ -1,138 +1,146 @@
-import argparse, os, sys
+# "entry" = file or directory
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Compare files and subdirectories under two directories "
-        "recursively."
-    )
+import os, sys
 
-    parser.add_argument(
-        "-c", "--compare-contents", action="store_true",
-        help="Compare the contents of the files too."
-    )
-    parser.add_argument(
-        "-m", "--mtime-tolerance", type=int, default=0,
-        help="Consider times of last modification the same if the absolute "
-        "value of their difference in seconds does not exceed this. Default=0."
-    )
-    parser.add_argument(
-        "path", nargs=2, help="Two paths separated by a space."
-    )
+HELP_TEXT = (
+    "Compare files and subdirectories under two directories recursively. "
+    "Args: path1 path2 [mTimeTolerance]. See README.md for details."
+)
 
-    args = parser.parse_args()
-
-    if not all(os.path.isdir(path) for path in args.path):
-        sys.exit("One of the paths does not exist or is not a directory.")
-
-    absPaths = [os.path.abspath(path) for path in args.path]
-    try:
-        commonPath = os.path.commonpath(absPaths)
-        if any(os.path.samefile(path, commonPath) for path in args.path):
-            sys.exit("One of the paths is under the other.")
-    except ValueError:
-        pass
-
-    return args
+def append_dir_separator(entry):
+    # append directory separator to entry name
+    return os.path.join(entry, "")
 
 def get_entries(baseDir, subDir=""):
     # read a directory recursively;
-    # return: {entry_without_baseDir: is_directory, ...}
+    # generate: entries without baseDir (dirs end with directory separator)
 
     dir_ = os.path.join(baseDir, subDir)
-    entries = {}
     try:
         with os.scandir(dir_) as dirIter:
             for entry in dirIter:
                 subPath = os.path.join(subDir, entry.name)
-                isDir = entry.is_dir()
-                entries[subPath] = isDir
-                if isDir:
-                    entries.update(get_entries(baseDir, subPath))
+                if entry.is_dir():
+                    yield append_dir_separator(subPath)
+                    yield from get_entries(baseDir, subPath)
+                else:
+                    yield subPath
     except PermissionError:
         print(f"Warning: no permission: {dir_}", file=sys.stderr)
-    return entries
+    except OSError:
+        sys.exit("Error reading the directory structure.")
 
-def format_entry(basePath, entry):
-    # add directory separator to end of entry if it's a directory
-
-    return os.path.join(entry, "") \
-    if os.path.isdir(os.path.join(basePath, entry)) else entry
+def is_dir_name(entry):
+    # is the entry a directory (ends with the directory separator)?
+    return append_dir_separator(entry) == entry
 
 def read_file(handle):
     # generate file in chunks
 
-    bytesLeft = handle.seek(0, 2)
-    handle.seek(0)
-    while bytesLeft:
-        chunkSize = min(bytesLeft, 2 ** 20)
-        yield handle.read(chunkSize)
-        bytesLeft -= chunkSize
+    try:
+        bytesLeft = handle.seek(0, 2)
+        handle.seek(0)
+        while bytesLeft:
+            chunkSize = min(bytesLeft, 2 ** 20)
+            yield handle.read(chunkSize)
+            bytesLeft -= chunkSize
+    except OSError:
+        sys.exit("Error reading file.")
 
-def are_files_identical(basePaths, subPath):
-    # are contents of files the same? (files must be same size)
+def are_files_identical(path1, path2, subPath):
+    # are contents of path1/subPath and path2/subPath the same?
 
-    paths = tuple(os.path.join(basePath, subPath) for basePath in basePaths)
+    path1 = os.path.join(path1, subPath)
+    path2 = os.path.join(path2, subPath)
+    try:
+        if os.path.getsize(path1) != os.path.getsize(path2):
+            return False
+    except OSError:
+        sys.exit("Error getting file size.")
 
-    with open(paths[0], "rb") as handle1, open(paths[1], "rb") as handle2:
+    with open(path1, "rb") as handle1, open(path2, "rb") as handle2:
         return all(
             chunks[0] == chunks[1]
             for chunks in zip(read_file(handle1), read_file(handle2))
         )
 
 def main():
-    args = parse_arguments()
+    # parse command line arguments
+    if not 3 <= len(sys.argv) <= 4:
+        sys.exit(HELP_TEXT)
+    paths = sys.argv[1:3]
+    mTimeTolerance = sys.argv[3] if len(sys.argv) >= 4 else "0"
+    #
+    try:
+        mTimeTolerance = int(mTimeTolerance, 10)
+        if mTimeTolerance < 0:
+            raise ValueError
+    except ValueError:
+        sys.exit("mTimeTolerance must be a nonnegative integer.")
+    #
+    for path in paths:
+        if not os.path.isdir(path):
+            sys.exit(f"Path {path} does not exist or is not a directory.")
 
     # get entries (dicts)
+    print(f"*** Reading paths ***")
     entries = []
-    for path in args.path:
-        print(f"*** Reading path {path} ***")
-        entries.append(get_entries(path))
-        print("directories: {}, files: {}".format(
-            sum(1 for e in entries[-1] if entries[-1][e]),
-            sum(1 for e in entries[-1] if not entries[-1][e])
+    for path in paths:
+        entries.append(set(get_entries(path)))
+        print("{}: {} directories, {} files".format(
+            path,
+            sum(1 for e in entries[-1] if     is_dir_name(e)),
+            sum(1 for e in entries[-1] if not is_dir_name(e))
         ))
-
-    # entries under both paths
-    commonEntries = set(entries[0]) & set(entries[1])
+    print()
 
     # entries only under one path
-    diffTypeEntries = {
-        e for e in commonEntries if entries[0][e] != entries[1][e]
-    }
     for i in range(2):
-        print(f"*** Entries only under {args.path[i]} ***")
-        for entry in sorted(
-            (set(entries[i]) - set(entries[1-i])) | diffTypeEntries
-        ):
-            print(format_entry(args.path[i], entry))
+        print(f"*** Entries only under {paths[i]} ***")
+        for entry in sorted(set(entries[i]) - set(entries[1-i])):
+            print(os.path.join(paths[i], entry))
+        print()
 
-    commonFiles = {
-        e for e in commonEntries if not (entries[0][e] or entries[1][e])
-    }
-    sameSizeFiles = set(
-        f for f in commonFiles
-        if len(set(os.path.getsize(os.path.join(p, f)) for p in args.path))
-        == 1
+    commonFiles = set(e for e in entries[0] & entries[1] if not is_dir_name(e))
+    identicalFiles = set(
+        f for f in commonFiles if are_files_identical(*paths, f)
     )
 
-    print("*** Files with different size ***")
-    for entry in sorted(commonFiles - sameSizeFiles):
-        print(entry)
+    # get differences of mtimes for non-identical files
+    try:
+        timeDiffs = dict(
+            (
+                f,
+                  os.path.getmtime(os.path.join(paths[1], f))
+                - os.path.getmtime(os.path.join(paths[0], f))
+            ) for f in commonFiles - identicalFiles
+        )
+    except OSError:
+        sys.exit("Error getting times of last modification for files.")
 
-    print("*** Files with same size, different time of last modification ***")
+    print(f"*** Files with different contents - newer under {paths[0]} ***")
+    for entry in sorted(f for f in timeDiffs if timeDiffs[f] < mTimeTolerance):
+        print(entry)
+    print()
+
+    print(
+        "*** Files with different contents - same last modification time ***"
+    )
     for entry in sorted(
-        f for f in sameSizeFiles if abs(
-            os.path.getmtime(os.path.join(args.path[0], f))
-            - os.path.getmtime(os.path.join(args.path[1], f))
-        ) > args.mtime_tolerance
+        f for f in timeDiffs if abs(timeDiffs[f]) <= mTimeTolerance
     ):
         print(entry)
+    print()
 
-    if args.compare_contents:
-        print("*** Files with same size, different contents ***")
-        for entry in sorted(
-            f for f in sameSizeFiles if not are_files_identical(args.path, f)
-        ):
-            print(entry)
+    print(f"*** Files with different contents - newer under {paths[1]} ***")
+    for entry in sorted(f for f in timeDiffs if timeDiffs[f] > mTimeTolerance):
+        print(entry)
+    print()
+
+    print("*** Files with identical contents and all common directories ***")
+    commonDirs = set(e for e in entries[0] & entries[1] if is_dir_name(e))
+    for entry in sorted(commonDirs | identicalFiles):
+        print(entry)
+    print()
 
 main()
